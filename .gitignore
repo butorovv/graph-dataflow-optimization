@@ -1,0 +1,16 @@
+# Build output
+/build/
+*.exe
+*.o
+*.obj
+*.dll
+*.log
+*.out
+*.tmp
+
+# IDE / Editor temporary files
+*.swp
+*.swo
+*.user
+.vscode/
+.idea/
