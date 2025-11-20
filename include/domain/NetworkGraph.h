@@ -18,6 +18,7 @@ namespace Domain
 
         NetworkGraph(const std::string &name = "network");
         void addNode(int id, const std::string &name = "");
+        void ensureNode(int id);
         void addEdge(int source, int target, double weight = 1.0);
         bool hasNode(int id) const;
         std::vector<int> getNeighbors(int node_id) const;
@@ -35,7 +36,7 @@ namespace Domain
         std::unordered_set<int> nodes;
     };
 
-    using NetworkGraphPtr = std::shared_ptr<NetworkGraph>;
+    // using NetworkGraphPtr = std::shared_ptr<NetworkGraph>; NetworkTypes.h уже даёт этот alias
 }
 
 #endif

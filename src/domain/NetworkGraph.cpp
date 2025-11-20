@@ -20,9 +20,42 @@ namespace Domain
         adjacency[source][target] = weight;
     }
 
+    void NetworkGraph::ensureNode(int id)
+    {
+        if (!hasNode(id)) addNode(id);
+    }
+
     bool NetworkGraph::hasNode(int id) const
     {
         return nodes.find(id) != nodes.end();
+    }
+
+    bool NetworkGraph::removeEdge(int from, int to)
+    {
+        auto it = adjacency.find(from);
+        if (it == adjacency.end()) return false;
+        auto it2 = it->second.find(to);
+        if (it2 == it->second.end()) return false;
+        it->second.erase(it2);
+        // если у from больше нет исходящих, можно удалить запись adjacency[from]
+        if (it->second.empty()) adjacency.erase(it);
+        // но node всё ещё считается существующим (nodes содержит id) — удалять узел не будем
+        return true;
+    }
+
+    bool NetworkGraph::removeNode(int id)
+    {
+        // удалить все исходящие ребра
+        adjacency.erase(id);
+        // удалить все входящие ребра
+        for (auto &kv : adjacency) {
+            kv.second.erase(id);
+        }
+        // удалить сам узел
+        auto it = nodes.find(id);
+        if (it == nodes.end()) return false;
+        nodes.erase(it);
+        return true;
     }
 
     std::vector<int> NetworkGraph::getNeighbors(int node_id) const
@@ -67,6 +100,14 @@ namespace Domain
         for (int id : nodes)
             res.push_back(id);
         return res;
+    }
+
+    NetworkGraphPtr NetworkGraph::createSnapshot() const
+    {
+        auto snap = std::make_shared<NetworkGraph>(this->name);
+        snap->nodes = this->nodes;
+        snap->adjacency = this->adjacency;
+        return snap;
     }
 
 }
