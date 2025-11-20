@@ -68,4 +68,4 @@ src/infrastructure/FileGraphRepository.cpp src/infrastructure/ThreadPool.cpp
 
 ## Автор
 
-Георгий Буторов
+Георгий Буторов, группа ИУ1-52Б
