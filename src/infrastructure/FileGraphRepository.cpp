@@ -25,7 +25,7 @@ static std::string cp1251_to_utf8(const std::string& src) {
 }
 
 Domain::NetworkGraphPtr FileGraphRepository::loadGraph(const std::string& filename) {
-    auto graph = std::make_shared<Domain::NetworkGraph>("Facebook Social Network");
+    auto graph = std::make_shared<Domain::NetworkGraph>("Multi-Param Network");
 
     std::ifstream in(filename, std::ios::binary);
     if (!in.is_open()) {
