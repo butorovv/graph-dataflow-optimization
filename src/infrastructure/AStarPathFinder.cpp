@@ -53,9 +53,9 @@ namespace Infrastructure
                 double edge_weight = 1.0; // версия без весов
                 
                 if (useWeights) {
-                    // версия с весами
+                    // версия С весами
                     try {
-                        edge_weight = graph->getEdgeWeight(current_id, neighbor_id); //, strategy);
+                        edge_weight = graph->getEdgeWeight(current_id, neighbor_id, strategy);
                     } catch (...) {
                         edge_weight = 1.0; // fallback
                     }
@@ -64,7 +64,7 @@ namespace Infrastructure
                 double tentative_g_score = g_score[current_id] + edge_weight;
 
                 if (tentative_g_score < g_score[neighbor_id]) {
-                    // Этот путь лучше, запоминаем его
+                    // этот путь лучше, запоминаем его
                     came_from[neighbor_id] = current_id;
                     g_score[neighbor_id] = tentative_g_score;
                     double f_score = tentative_g_score + heuristic(neighbor_id, end_id);
@@ -73,14 +73,14 @@ namespace Infrastructure
             }
         }
 
-        // Проверка, найден ли путь
+        // проверка, найден ли путь
         if (g_score[end_id] == std::numeric_limits<double>::infinity()) {
             result.success = false;
             result.errorMessage = "No path found (A*)";
             return result;
         }
 
-        // Восстановление пути
+        // восстановление пути
         std::vector<int> path;
         int current = end_id;
         while (current != start_id) {
