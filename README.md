@@ -32,7 +32,15 @@ src/main.cpp         -> Точка входа программы
 Откройте Git Bash или терминал с TDM-GCC в PATH и выполните команду из корня проекта:
 
 ```bash
-g++ -std=c++17 -Iinclude -IC:/boost_1_89_0 -O2 -o build/graph_research.exe     src/main.cpp     src/application/GraphAnalysisFactory.cpp     src/application/GraphAnalysisService.cpp     src/domain/NetworkGraph.cpp     src/domain/NetworkTypes.cpp     src/domain/WeightCalculator.cpp     src/infrastructure/AlgorithmComparator.cpp     src/infrastructure/AStarPathFinder.cpp     src/infrastructure/BasicMonitor.cpp     src/infrastructure/BGLShortestPath.cpp     src/infrastructure/BoostFlowSolver.cpp     src/infrastructure/FileGraphRepository.cpp     src/infrastructure/GeneticAlgorithm.cpp     src/infrastructure/SimpleStorage.cpp     src/infrastructure/ThreadPool.cpp     src/infrastructure/AntColonyOptimizer.cpp
+g++ -std=c++17 -Iinclude -IC:/boost_1_89_0 -O2 -o build/graph_research.exe     
+src/main.cpp     src/application/GraphAnalysisFactory.cpp     
+src/application/GraphAnalysisService.cpp     src/domain/NetworkGraph.cpp     
+src/domain/NetworkTypes.cpp     src/domain/WeightCalculator.cpp     
+src/infrastructure/AlgorithmComparator.cpp     src/infrastructure/AStarPathFinder.cpp     
+src/infrastructure/BasicMonitor.cpp     src/infrastructure/BGLShortestPath.cpp     
+src/infrastructure/BoostFlowSolver.cpp     src/infrastructure/FileGraphRepository.cpp     
+src/infrastructure/GeneticAlgorithm.cpp     src/infrastructure/SimpleStorage.cpp     
+src/infrastructure/ThreadPool.cpp     src/infrastructure/AntColonyOptimizer.cpp
 ```
 
 - `-Iinclude` — путь к заголовочным файлам проекта  
