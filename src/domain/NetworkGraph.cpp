@@ -20,6 +20,7 @@ namespace Domain
         LinkParameters params;
         params.latency = weight;
         params.cost = weight;
+        // используем перегруженную версию с LinkParameters
         addEdge(source, target, params);
     }
 
@@ -45,12 +46,12 @@ namespace Domain
         return res;
     }
 
-    // старая версия (для совместимости)
+    // простая версия (для совместимости) - возвращает latency по умолчанию
     double NetworkGraph::getEdgeWeight(int source, int target) const {
         return getEdgeParameters(source, target).latency;
     }
 
-    // новая версия с стратегией агрегации
+    // сложная версия с стратегией агрегации
     double NetworkGraph::getEdgeWeight(int source, int target, WeightCalculator::Strategy strategy) const {
         auto params = getEdgeParameters(source, target);
         return WeightCalculator::calculateCompositeWeight(params, strategy);

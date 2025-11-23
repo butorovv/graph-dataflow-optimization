@@ -29,6 +29,10 @@ namespace Infrastructure
             bool useWeights = true,
             Domain::WeightCalculator::Strategy strategy = Domain::WeightCalculator::MINIMIZE_LATENCY);
 
+        std::string getAlgorithmName() const override {
+            return useWeights ? "BGL Dijkstra (Multi-Param)" : "BGL Dijkstra (Uniform)";
+        }
+
     private:
         bool useWeights;
         Domain::WeightCalculator::Strategy strategy;

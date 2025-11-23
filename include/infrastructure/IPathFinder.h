@@ -14,6 +14,7 @@ namespace Infrastructure
         virtual Domain::PathResult findShortestPath(
             const Domain::NetworkGraphPtr &graph,
             int start_id, int end_id) = 0;
+        virtual std::string getAlgorithmName() const = 0;
     };
     using IPathFinderPtr = std::unique_ptr<IPathFinder>;
 }

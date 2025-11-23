@@ -10,8 +10,8 @@ namespace Domain
     class NetworkGraph;
     using NetworkGraphPtr = std::shared_ptr<NetworkGraph>;
 
-    struct PathResult;      // forward
-    class IGraphRepository; // forward (убирает зависимость от полного включения)
+    struct PathResult;
+    class IGraphRepository;
 }
 namespace Infrastructure
 {

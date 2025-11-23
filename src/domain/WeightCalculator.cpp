@@ -71,18 +71,18 @@ namespace Domain
     }
 
     double WeightCalculator::calculateDynamicReliability(double packet_loss, double utilization) {
-        // Надежность падает при высоких потерях и загрузке
+        // надежность падает при высоких потерях и загрузке
         double penalty = packet_loss * 0.7 + utilization * 0.3;
         return std::max(0.0, 1.0 - penalty);
     }
 
     void WeightCalculator::analyzeParameterDependencies(const LinkParameters& params) {
-        std::cout << "=== АНАЛИЗ ВЛИЯНИЯ ПАРАМЕТРОВ ===\n";
+        std::cout << "АНАЛИЗ ВЛИЯНИЯ ПАРАМЕТРОВ\n";
         std::cout << "Базовые параметры: latency=" << params.latency 
                   << ", bandwidth=" << params.bandwidth 
                   << ", utilization=" << params.utilization << "\n";
         
-        // Анализ влияния utilization на effective_latency
+        // анализ влияния utilization на effective_latency
         std::cout << "Влияние загрузки на задержку:\n";
         for (double util = 0.0; util <= 1.0; util += 0.2) {
             double eff_lat = calculateEffectiveLatency(params.latency, util);
@@ -90,7 +90,7 @@ namespace Domain
                       << " (увеличение в " << eff_lat/params.latency << " раз)\n";
         }
         
-        // Анализ влияния packet_loss на bandwidth
+        // анализ влияния packet_loss на bandwidth
         std::cout << "Влияние потерь на пропускную способность:\n";
         for (double loss = 0.0; loss <= 0.5; loss += 0.1) {
             double curr_bw = calculateCurrentBandwidth(params.bandwidth, loss);

@@ -21,6 +21,9 @@ namespace Infrastructure
         Domain::PathResult findShortestPath(
             const Domain::NetworkGraphPtr &graph,
             int start_id, int end_id) override;
+        std::string getAlgorithmName() const override {
+            return useWeights ? "A* (Multi-Param)" : "A* (Uniform)";
+        }
 
     private:
         bool useWeights;

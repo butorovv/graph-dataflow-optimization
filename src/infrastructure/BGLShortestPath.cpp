@@ -1,6 +1,6 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
-#include "infrastructure/IFlowSolver.h"
+#include "infrastructure/BGLShortestPath.h"
 #include <unordered_map>
 #include <vector>
 #include <limits>
@@ -35,30 +35,41 @@ namespace Infrastructure
             return result;
         }
 
+        // ограничение на размер графа для предотвращения чрезмерного использования памяти
+        const size_t MAX_NODES = 5000; // ограничиваем размер графа
+        auto node_ids = graph->getAllNodeIds();
+        if (node_ids.size() > MAX_NODES) {
+            result.success = false;
+            result.errorMessage = "Graph too large for BGL (" + std::to_string(node_ids.size()) + " nodes)";
+            return result;
+        }
+
         BGLGraph bgl_graph;
         std::unordered_map<int, size_t> node_to_index;
         std::vector<int> index_to_node;
+        index_to_node.reserve(node_ids.size());
 
-        auto node_ids = graph->getAllNodeIds();
+        // оптимизированное создание вершин
         for (size_t i = 0; i < node_ids.size(); ++i) {
             node_to_index[node_ids[i]] = i;
             index_to_node.push_back(node_ids[i]);
-            boost::add_vertex(bgl_graph);
         }
+        bgl_graph = BGLGraph(node_ids.size()); // создаем сразу нужного размера
 
-        // заполнение графа с учетом выбранной стратегии
+        // оптимизированное добавление ребер - избегаем копирования
         for (int node_id : node_ids) {
             size_t u = node_to_index[node_id];
-            auto neighbors = graph->getNeighbors(node_id);
+            
+            // используем ссылку на соседей а не копию
+            const auto& neighbors = graph->getNeighbors(node_id);
             for (int v_id : neighbors) {
-                double weight = 1.0; // версия без весов
+                double weight = 1.0;
                 
                 if (useWeights) {
-                    // версия С весами - используем агрегацию параметров
                     try {
                         weight = graph->getEdgeWeight(node_id, v_id, strategy);
                     } catch (...) {
-                        weight = 1.0; // fallback
+                        weight = 1.0;
                     }
                 }
                 
@@ -74,42 +85,51 @@ namespace Infrastructure
         size_t start_idx = node_to_index[start_id];
         size_t end_idx = node_to_index[end_id];
 
-        // запуск алгоритма Дейкстры из Boost
-        boost::dijkstra_shortest_paths(
-            bgl_graph,
-            start_idx,
-            boost::predecessor_map(&predecessors[0]).distance_map(&distances[0]));
+        try {
+            // запуск алгоритма дейкстры из boost
+            boost::dijkstra_shortest_paths(
+                bgl_graph,
+                start_idx,
+                boost::predecessor_map(&predecessors[0]).distance_map(&distances[0]));
 
-        if (distances[end_idx] == std::numeric_limits<double>::infinity()) {
-            result.success = false;
-            result.errorMessage = "No path found";
-            return result;
-        }
-
-        // восстановление пути
-        std::vector<int> rev_path;
-        for (size_t v = end_idx; v != start_idx; v = predecessors[v]) {
-            if (predecessors[v] == std::numeric_limits<size_t>::max()) {
+            if (distances[end_idx] == std::numeric_limits<double>::infinity()) {
                 result.success = false;
-                result.errorMessage = "Path reconstruction failed";
+                result.errorMessage = "No path found";
                 return result;
             }
-            rev_path.push_back(index_to_node[v]);
+
+            // восстановление пути
+            std::vector<int> rev_path;
+            for (size_t v = end_idx; v != start_idx; v = predecessors[v]) {
+                if (predecessors[v] == std::numeric_limits<size_t>::max()) {
+                    result.success = false;
+                    result.errorMessage = "Path reconstruction failed";
+                    return result;
+                }
+                rev_path.push_back(index_to_node[v]);
+            }
+            rev_path.push_back(index_to_node[start_idx]);
+            std::reverse(rev_path.begin(), rev_path.end());
+
+            auto endTime = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+
+            result.success = true;
+            result.pathNodes = std::move(rev_path);
+            result.totalCost = distances[end_idx];
+            result.executionTime = duration.count() / 1000.0;
+            result.algorithmName = useWeights ? 
+                "BGL Dijkstra (Multi-Param)" : 
+                "BGL Dijkstra (Uniform)";
+                
+        } catch (const std::bad_alloc& e) {
+            result.success = false;
+            result.errorMessage = "Out of memory in BGL algorithm";
+        } catch (const std::exception& e) {
+            result.success = false;
+            result.errorMessage = std::string("BGL error: ") + e.what();
         }
-        rev_path.push_back(index_to_node[start_idx]);
-        std::reverse(rev_path.begin(), rev_path.end());
 
-        auto endTime = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-
-        result.success = true;
-        result.pathNodes = std::move(rev_path);
-        result.totalCost = distances[end_idx];
-        result.executionTime = duration.count() / 1000.0; // convert to milliseconds
-        result.algorithmName = useWeights ? 
-            "BGL Dijkstra (Multi-Param Weights)" : 
-            "BGL Dijkstra (Uniform Weights)";
-            
         return result;
     }
 }

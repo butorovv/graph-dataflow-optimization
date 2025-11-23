@@ -5,8 +5,10 @@
 #include "BGLShortestPath.h"
 #include "AStarPathFinder.h"
 #include "GeneticAlgorithm.h"
+#include "AntColonyOptimizer.h"
 #include <vector>
 #include <map>
+#include <memory>
 
 namespace Infrastructure
 {
@@ -16,6 +18,7 @@ namespace Infrastructure
         double pathCost;
         int pathLength;
         bool success;
+        std::string algorithmType; // exact and heuristic
     };
 
     class AlgorithmComparator

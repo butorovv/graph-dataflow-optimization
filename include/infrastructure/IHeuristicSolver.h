@@ -11,13 +11,14 @@ namespace Infrastructure
 {
     struct HeuristicResult
     {
+        bool success = false;
         double objective = 0.0;
         std::vector<std::pair<int, int>> path;
         std::map<std::pair<int, int>, double> flows;
         double executionTime = 0.0;
-        bool success = false;
         std::string algorithmName;
     };
+
     class IHeuristicSolver
     {
     public:
@@ -25,7 +26,8 @@ namespace Infrastructure
         virtual HeuristicResult optimize(const Domain::NetworkGraphPtr &graph,
                                          const std::vector<std::pair<int, int>> &demands) = 0;
     };
-    using IHeuristicSolverPtr = std::unique_ptr<IHeuristicSolver>;
 
+    using IHeuristicSolverPtr = std::unique_ptr<IHeuristicSolver>;
 }
+
 #endif
