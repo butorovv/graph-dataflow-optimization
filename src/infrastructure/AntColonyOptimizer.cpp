@@ -129,7 +129,7 @@ namespace Infrastructure
 
         int current = start;
         
-        const size_t MAX_PATH_LENGTH = 50;
+        const size_t MAX_PATH_LENGTH = 5000;
         
         while (current != end && ant.path.size() < MAX_PATH_LENGTH) {
             int next = selectNextNode(ant, graph, end);

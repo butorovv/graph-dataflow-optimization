@@ -358,7 +358,7 @@ namespace Infrastructure
         paths.push({start});
         visited.insert(start);
 
-        const size_t MAX_PATHS = 50;
+        const size_t MAX_PATHS = 5000;
         size_t paths_explored = 0;
 
         while (!paths.empty() && paths_explored < MAX_PATHS)
@@ -455,7 +455,7 @@ namespace Infrastructure
         std::unordered_set<int> visited = {start};
         int current = start;
 
-        const size_t MAX_STEPS = 25;
+        const size_t MAX_STEPS = 5000;
 
         for (size_t step = 0; step < MAX_STEPS && current != end; ++step)
         {

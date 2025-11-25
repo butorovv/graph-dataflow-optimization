@@ -20,193 +20,250 @@
 // config
 #include "config/StrategyConfig.h"
 
-void setupConsole() {
+void setupConsole()
+{
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 #endif
 }
 
-void printBanner() {
-    std::cout << "ПОЛНОЕ СРАВНЕНИЕ 6 АЛГОРИТМОВ С ГИБКИМИ СТРАТЕГИЯМИ\n";
-    std::cout << "Граф: gr_1500.csv (300 узлов)\n";
-    std::cout << "Алгоритмы: Дейкстра (2 версии), A* (2 версии), Генетический, Муравьиный\n\n";
+// генерация дорожного графа в памяти
+Domain::NetworkGraphPtr generateAstarFriendlyGraph(int numNodes = 5000)
+{
+    auto graph = std::make_shared<Domain::NetworkGraph>();
+
+    // создаем узлы
+    for (int i = 0; i < numNodes; ++i)
+    {
+        graph->addNode(i);
+    }
+
+    // создаем «дорожные» связи, линейная цепочка + короткие ответвления
+    for (int i = 0; i < numNodes; ++i)
+    {
+        if (i + 1 < numNodes)
+            graph->addEdge(i, i + 1, 1.0);
+        if (i + 2 < numNodes)
+            graph->addEdge(i, i + 2, 1.2);
+        if (i + 5 < numNodes)
+            graph->addEdge(i, i + 5, 1.5);
+    }
+
+    // добавляем длинные кросс-связи для агрессивных маршрутов
+    for (int i = 0; i < numNodes; i += 100)
+    {
+        if (i + 300 < numNodes)
+            graph->addEdge(i, i + 300, 2.0);
+        if (i + 500 < numNodes)
+            graph->addEdge(i, i + 500, 2.5);
+    }
+
+    return graph;
 }
 
-void printStrategyOptions() {
-    std::cout << "ДОСТУПНЫЕ КОНФИГУРАЦИИ СТРАТЕГИЙ:\n";
-    std::cout << "=================================\n";
+// CLI выбор графа
+std::string selectGraphFromCLI()
+{
+    std::cout << "🎯 ВЫБОР ГРАФА ДЛЯ ТЕСТИРОВАНИЯ\n";
+    std::cout << "================================\n";
+    std::cout << "1. gr_1500.csv (300 узлов) - Социальная сеть\n";
+    std::cout << "2. astar_friendly.txt (200 узлов) - Дорожная сеть\n";
+    std::cout << "3. memory:astar_friendly - Генерация графа A* в памяти\n";
+    std::cout << "4. custom - Указать свой файл\n";
+    std::cout << "\nВыберите граф (1-5): ";
+
+    int choice;
+    std::cin >> choice;
+
+    switch (choice)
+    {
+    case 1:
+        return "data/datasets/gr_1500.csv";
+    case 2:
+        return "data/datasets/astar_friendly.csv";
+    case 3:
+        return "memory:astar_friendly";
+    case 4:
+    {
+        std::cout << "Введите путь к файлу графа: ";
+        std::string custom_path;
+        std::cin >> custom_path;
+        return custom_path;
+    }
+    default:
+        std::cout << "Неверный выбор, используем gr_1500.csv по умолчанию\n";
+        return "data/datasets/gr_1500.csv";
+    }
+}
+
+// получение тестовых маршрутов
+std::vector<std::pair<int, int>> getTestRoutesForGraph(const std::string &graph_file,
+                                                       const Domain::NetworkGraphPtr &graph)
+{
+    if (graph_file.find("astar_friendly") != std::string::npos)
+    {
+        // агрессивные тестовые маршруты
+        return {
+            {0, 2300},
+            {10, 2000},
+            {50, 1800},
+            {300, 1200},
+            {120, 300}};
+    }
+    else
+    {
+        auto nodes = graph->getAllNodeIds();
+        std::vector<std::pair<int, int>> routes;
+        std::vector<int> good_nodes;
+
+        for (int i = 0; i < std::min(20, (int)nodes.size()); ++i)
+        {
+            if (graph->getNeighbors(nodes[i]).size() >= 3)
+            {
+                good_nodes.push_back(nodes[i]);
+                if (good_nodes.size() >= 6)
+                    break;
+            }
+        }
+
+        if (good_nodes.size() >= 4)
+        {
+            routes.push_back({good_nodes[0], good_nodes[1]});
+            routes.push_back({good_nodes[2], good_nodes[3]});
+            routes.push_back({good_nodes[0], good_nodes[4]});
+            routes.push_back({good_nodes[1], good_nodes[5]});
+        }
+        else
+        {
+            for (int i = 0; i < std::min(4, (int)nodes.size() - 1); i += 2)
+            {
+                routes.push_back({nodes[i], nodes[i + 1]});
+            }
+        }
+        return routes;
+    }
+}
+
+// описание графа
+std::string getGraphDescription(const std::string &graph_file)
+{
+    if (graph_file.find("astar_friendly") != std::string::npos)
+        return "astar_friendly.txt (200 узлов) - ДОРОЖНАЯ СЕТЬ";
+    else if (graph_file.find("gr_1500") != std::string::npos)
+        return "gr_1500.csv (300 узлов) - Социальная сеть";
+    else if (graph_file.find("small_test") != std::string::npos)
+        return "small_test.csv (50 узлов) - Тестовый граф";
+    else
+        return graph_file + " - Пользовательский граф";
+}
+
+// CLI выбор стратегии
+Config::StrategySettings selectStrategyFromCLI()
+{
+    std::cout << "🎯 ВЫБОР СТРАТЕГИИ ВЕСОВ\n";
+    std::cout << "=========================\n";
     std::cout << "1. Latency Optimized    - минимизация задержки (VoIP, игры)\n";
     std::cout << "2. Bandwidth Optimized  - максимизация пропускной способности (стриминг)\n";
     std::cout << "3. Balanced             - балансировка нагрузки (универсальный)\n";
     std::cout << "4. Cost Optimized       - минимизация стоимости (бюджетный)\n";
     std::cout << "5. Adaptive             - адаптивная стратегия (интеллектуальный)\n";
     std::cout << "6. Mixed                - смешанный подход (разные стратегии)\n";
-    std::cout << "7. Custom               - кастомная настройка\n";
-    std::cout << "\n";
+    std::cout << "\nВыберите стратегию (1-6): ";
+
+    int choice;
+    std::cin >> choice;
+
+    switch (choice)
+    {
+    case 1:
+        return Config::StrategySettings::createLatencyOptimized();
+    case 2:
+        return Config::StrategySettings::createBandwidthOptimized();
+    case 3:
+        return Config::StrategySettings::createBalanced();
+    case 4:
+        return Config::StrategySettings::createCostOptimized();
+    case 5:
+        return Config::StrategySettings::createAdaptive();
+    case 6:
+        return Config::StrategySettings::createMixed();
+    default:
+        std::cout << "Неверный выбор, используем Latency Optimized по умолчанию\n";
+        return Config::StrategySettings::createLatencyOptimized();
+    }
 }
 
-int main() {
+int main()
+{
     setupConsole();
-    printBanner();
-    printStrategyOptions();
 
-    try {
+    try
+    {
+        std::string graph_file = selectGraphFromCLI();
+        std::string graph_description = getGraphDescription(graph_file);
+
+        std::cout << "\n"
+                  << std::string(50, '=') << "\n";
+        std::cout << "ПОЛНОЕ СРАВНЕНИЕ 6 АЛГОРИТМОВ\n";
+        std::cout << "Граф: " << graph_description << "\n\n";
+
+        auto strategies = selectStrategyFromCLI();
+        std::cout << "✅ Выбрана конфигурация: " << strategies.getDescription() << "\n\n";
+
         auto total_start_time = std::chrono::high_resolution_clock::now();
 
-        // 1) загрузка графа
-        std::cout << "ЗАГРУЗКА ГРАФА...\n";
-        auto repo = Application::GraphAnalysisFactory::createRepository();
-        auto graph = repo->loadGraph("data/datasets/gr_1500.csv");
-        std::cout << "OK Успешно загружен: " << graph->getInfo() << "\n\n";
+        Domain::NetworkGraphPtr graph;
 
-        // 2) базовый анализ
+        if (graph_file == "memory:astar_friendly")
+        {
+            std::cout << "ГЕНЕРАЦИЯ ГРАФА В ПАМЯТИ...\n";
+            graph = generateAstarFriendlyGraph();
+            std::cout << "✅ Сгенерирован граф: " << graph->getAllNodeIds().size() << " узлов\n\n";
+        }
+        else
+        {
+            auto repo = Application::GraphAnalysisFactory::createRepository();
+            graph = repo->loadGraph(graph_file);
+            std::cout << "✅ Успешно загружен: " << graph->getInfo() << "\n\n";
+        }
+
+        // базовый анализ
         std::cout << "БАЗОВЫЙ АНАЛИЗ СЕТИ:\n";
         Infrastructure::BasicMonitor::collectBasicMetrics(graph);
         std::cout << "\n";
 
-        // 3) генерация тестовых маршрутов
+        // генерация тестовых маршрутов
         std::cout << "СОЗДАНИЕ ТЕСТОВЫХ МАРШРУТОВ...\n";
-        auto nodes = graph->getAllNodeIds();
-        std::vector<std::pair<int, int>> test_routes;
-        
-        // выбираем узлы с хорошей связностью
-        std::vector<int> good_nodes;
-        for (int i = 0; i < std::min(20, (int)nodes.size()); ++i) {
-            if (graph->getNeighbors(nodes[i]).size() >= 3) {
-                good_nodes.push_back(nodes[i]);
-                if (good_nodes.size() >= 6) break;
-            }
+        auto test_routes = getTestRoutesForGraph(graph_file, graph);
+        std::cout << "✅ Создано " << test_routes.size() << " тестовых маршрутов\n";
+        std::cout << "Маршруты: ";
+        for (size_t i = 0; i < test_routes.size(); ++i)
+        {
+            std::cout << test_routes[i].first << "→" << test_routes[i].second;
+            if (i < test_routes.size() - 1)
+                std::cout << ", ";
         }
-        
-        if (good_nodes.size() >= 4) {
-            test_routes.push_back({good_nodes[0], good_nodes[1]});
-            test_routes.push_back({good_nodes[2], good_nodes[3]});
-            test_routes.push_back({good_nodes[0], good_nodes[4]});
-            test_routes.push_back({good_nodes[1], good_nodes[5]});
-        } else {
-            // fallback
-            for (int i = 0; i < std::min(4, (int)nodes.size() - 1); i += 2) {
-                test_routes.push_back({nodes[i], nodes[i + 1]});
-            }
-        }
-        
-        std::cout << "OK Создано " << test_routes.size() << " тестовых маршрутов\n\n";
+        std::cout << "\n\n";
 
-        // 4) выбор стратегий и запуск сравнения
-        std::cout << "НАСТРОЙКА СТРАТЕГИЙ...\n";
-        
-        // ВАРИАНТ 1 оптимизация задержки (рекомендуется для первого запуска)
-        auto strategies = Config::StrategySettings::createLatencyOptimized();
-        std::cout << "OK Выбрана конфигурация: LATENCY OPTIMIZED\n";
-        
-        // ВАРИАНТ 2 раскомментировать для других сценариев:
-        
-        // auto strategies = Config::StrategySettings::createBandwidthOptimized();
-        // std::cout << "OK Выбрана конфигурация: BANDWIDTH OPTIMIZED\n";
-        
-        // auto strategies = Config::StrategySettings::createBalanced();
-        // std::cout << "OK Выбрана конфигурация: BALANCED\n";
-        
-        // auto strategies = Config::StrategySettings::createCostOptimized();
-        // std::cout << "OK Выбрана конфигурация: COST OPTIMIZED\n";
-        
-        // auto strategies = Config::StrategySettings::createAdaptive();
-        // std::cout << "OK Выбрана конфигурация: ADAPTIVE\n";
-        
-        // auto strategies = Config::StrategySettings::createMixed();
-        // std::cout << "OK Выбрана конфигурация: MIXED\n";
-        
-        // ВАРИАНТ 3 кастомная настройка (полный контроль)
-        /*
-        Config::StrategySettings strategies;
-        strategies.exact_multi_param = Domain::WeightCalculator::MINIMIZE_COST;
-        strategies.genetic = Domain::WeightCalculator::ADAPTIVE_WEIGHTS;
-        strategies.ant_colony = Domain::WeightCalculator::MAXIMIZE_BANDWIDTH;
-        std::cout << "OK Выбрана конфигурация: CUSTOM\n";
-        */
-        
-        std::cout << "Детали: " << strategies.getDescription() << "\n\n";
-
-        // 5) полное сравнение 6 алгоритмов с выбранными стратегиями
+        // сравнение алгоритмов
         std::cout << "ЗАПУСК ПОЛНОГО СРАВНЕНИЯ 6 АЛГОРИТМОВ...\n";
         auto all_results = Infrastructure::AlgorithmComparator::compareAlgorithms(graph, test_routes, strategies);
-        
-        // 6) вывод полной таблицы сравнения
         Infrastructure::AlgorithmComparator::printComparisonTable(all_results);
 
-        // 7) тестирование потоковых алгоритмов
-        if (test_routes.size() >= 2) {
-            std::cout << "\nТЕСТИРОВАНИЕ ПОТОКОВЫХ АЛГОРИТМОВ:\n";
-            auto flow_solver = Application::GraphAnalysisFactory::createFlowSolver();
-            
-            for (size_t i = 0; i < std::min(test_routes.size(), size_t(2)); ++i) {
-                const auto& route = test_routes[i];
-                std::cout << "Маршрут " << route.first << " → " << route.second << ":\n";
-                
-                try {
-                    auto result = flow_solver->solveMaxFlow(graph, route.first, route.second);
-                    if (result.success) {
-                        std::cout << "  Макс. поток: " << result.maxFlow 
-                                  << ", время: " << result.totalCost << "ms\n";
-                    } else {
-                        std::cout << "  FAIL: " << result.errorMessage << "\n";
-                    }
-                } catch (const std::exception& e) {
-                    std::cout << "  FAIL: " << e.what() << "\n";
-                }
-            }
-        }
-
-        // 8) тестирование отказоустойчивости
-        if (nodes.size() >= 3) {
-            std::cout << "\nТЕСТИРОВАНИЕ ОТКАЗОУСТОЙЧИВОСТИ:\n";
-            
-            std::vector<int> test_nodes = {nodes[1]};
-            for (int node_id : test_nodes) {
-                if (graph->hasNode(node_id)) {
-                    Infrastructure::BasicMonitor::simulateNodeFailure(graph, node_id);
-                }
-            }
-            
-            // проверяем связность после отказов
-            if (!test_routes.empty()) {
-                std::vector<std::pair<int, int>> connectivity_test;
-                for (size_t i = 0; i < std::min(test_routes.size(), size_t(2)); ++i) {
-                    connectivity_test.push_back(test_routes[i]);
-                }
-                Infrastructure::BasicMonitor::analyzeConnectivity(graph, connectivity_test);
-            }
-            std::cout << "\n";
-        }
-
-        // 9) сохранение результатов
-        std::cout << "СОХРАНЕНИЕ РЕЗУЛЬТАТОВ...\n";
+        // сохранение результатов
         Infrastructure::SimpleStorage::saveExperimentResults("full_algorithm_comparison.csv", all_results);
         Infrastructure::SimpleStorage::saveGraphInfo(graph, "full_test_results.txt");
-        Infrastructure::SimpleStorage::logEvent("Полное сравнение 6 алгоритмов завершено. " + strategies.getDescription());
-        std::cout << "OK Результаты сохранены в файлы:\n";
-        std::cout << "- full_algorithm_comparison.csv\n";
-        std::cout << "- full_test_results.txt\n";
-        std::cout << "- experiment_log.txt\n\n";
+        Infrastructure::SimpleStorage::logEvent("Полное сравнение 6 алгоритмов завершено. Граф: " + graph_description + ", Стратегия: " + strategies.getDescription());
+        std::cout << "\n✅ Результаты сохранены.\n";
 
         auto total_end_time = std::chrono::high_resolution_clock::now();
         auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(total_end_time - total_start_time);
-
-        std::cout << "ПОЛНОЕ СРАВНЕНИЕ 6 АЛГОРИТМОВ ЗАВЕРШЕНО!\n";
         std::cout << "Общее время выполнения: " << total_duration.count() << " секунд\n";
-        std::cout << "Использованная конфигурация: " << strategies.getDescription() << "\n";
-        std::cout << "Протестированы алгоритмы:\n";
-        std::cout << "- Дейкстра (Uniform)\n";
-        std::cout << "- Дейкстра (Multi-Param)\n"; 
-        std::cout << "- A* (Uniform)\n";
-        std::cout << "- A* (Multi-Param)\n";
-        std::cout << "- Genetic Algorithm\n";
-        std::cout << "- Ant Colony Optimization\n";
-        std::cout << "Количество маршрутов: " << test_routes.size() << "\n";
-
-    } catch (const std::exception& e) {
-        std::cerr << "FAIL Критическая ошибка: " << e.what() << "\n";
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "❌ Критическая ошибка: " << e.what() << "\n";
         return 1;
     }
 
