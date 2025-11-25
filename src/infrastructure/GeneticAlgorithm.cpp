@@ -155,7 +155,7 @@ namespace Infrastructure
         }
 
         auto endTime = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
 
         // используем глобально лучшее решение
         if (global_best.fitness < std::numeric_limits<double>::max() &&
@@ -164,7 +164,7 @@ namespace Infrastructure
 
             result.success = true;
             result.objective = global_best.fitness;
-            result.executionTime = duration.count() / 1000.0;
+            result.executionTime = duration.count() / 1000000.0;
             result.algorithmName = "Optimized Genetic Algorithm";
 
             // преобразование пути

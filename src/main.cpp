@@ -17,6 +17,9 @@
 #include "infrastructure/SimpleStorage.h"
 #include "infrastructure/BoostFlowSolver.h"
 
+// config
+#include "config/StrategyConfig.h"
+
 void setupConsole() {
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
@@ -25,14 +28,28 @@ void setupConsole() {
 }
 
 void printBanner() {
-    std::cout << "ПОЛНОЕ СРАВНЕНИЕ 6 АЛГОРИТМОВ\n";
+    std::cout << "ПОЛНОЕ СРАВНЕНИЕ 6 АЛГОРИТМОВ С ГИБКИМИ СТРАТЕГИЯМИ\n";
     std::cout << "Граф: gr_1500.csv (300 узлов)\n";
     std::cout << "Алгоритмы: Дейкстра (2 версии), A* (2 версии), Генетический, Муравьиный\n\n";
+}
+
+void printStrategyOptions() {
+    std::cout << "ДОСТУПНЫЕ КОНФИГУРАЦИИ СТРАТЕГИЙ:\n";
+    std::cout << "=================================\n";
+    std::cout << "1. Latency Optimized    - минимизация задержки (VoIP, игры)\n";
+    std::cout << "2. Bandwidth Optimized  - максимизация пропускной способности (стриминг)\n";
+    std::cout << "3. Balanced             - балансировка нагрузки (универсальный)\n";
+    std::cout << "4. Cost Optimized       - минимизация стоимости (бюджетный)\n";
+    std::cout << "5. Adaptive             - адаптивная стратегия (интеллектуальный)\n";
+    std::cout << "6. Mixed                - смешанный подход (разные стратегии)\n";
+    std::cout << "7. Custom               - кастомная настройка\n";
+    std::cout << "\n";
 }
 
 int main() {
     setupConsole();
     printBanner();
+    printStrategyOptions();
 
     try {
         auto total_start_time = std::chrono::high_resolution_clock::now();
@@ -76,14 +93,49 @@ int main() {
         
         std::cout << "OK Создано " << test_routes.size() << " тестовых маршрутов\n\n";
 
-        // 4) полное сравнение 6 алгоритмов через AlgorithmComparator
-        std::cout << "ЗАПУСК ПОЛНОГО СРАВНЕНИЯ 6 АЛГОРИТМОВ...\n";
-        auto all_results = Infrastructure::AlgorithmComparator::compareAlgorithms(graph, test_routes);
+        // 4) выбор стратегий и запуск сравнения
+        std::cout << "НАСТРОЙКА СТРАТЕГИЙ...\n";
         
-        // 5) вывод полной таблицы сравнения
+        // ВАРИАНТ 1 оптимизация задержки (рекомендуется для первого запуска)
+        auto strategies = Config::StrategySettings::createLatencyOptimized();
+        std::cout << "OK Выбрана конфигурация: LATENCY OPTIMIZED\n";
+        
+        // ВАРИАНТ 2 раскомментировать для других сценариев:
+        
+        // auto strategies = Config::StrategySettings::createBandwidthOptimized();
+        // std::cout << "OK Выбрана конфигурация: BANDWIDTH OPTIMIZED\n";
+        
+        // auto strategies = Config::StrategySettings::createBalanced();
+        // std::cout << "OK Выбрана конфигурация: BALANCED\n";
+        
+        // auto strategies = Config::StrategySettings::createCostOptimized();
+        // std::cout << "OK Выбрана конфигурация: COST OPTIMIZED\n";
+        
+        // auto strategies = Config::StrategySettings::createAdaptive();
+        // std::cout << "OK Выбрана конфигурация: ADAPTIVE\n";
+        
+        // auto strategies = Config::StrategySettings::createMixed();
+        // std::cout << "OK Выбрана конфигурация: MIXED\n";
+        
+        // ВАРИАНТ 3 кастомная настройка (полный контроль)
+        /*
+        Config::StrategySettings strategies;
+        strategies.exact_multi_param = Domain::WeightCalculator::MINIMIZE_COST;
+        strategies.genetic = Domain::WeightCalculator::ADAPTIVE_WEIGHTS;
+        strategies.ant_colony = Domain::WeightCalculator::MAXIMIZE_BANDWIDTH;
+        std::cout << "OK Выбрана конфигурация: CUSTOM\n";
+        */
+        
+        std::cout << "Детали: " << strategies.getDescription() << "\n\n";
+
+        // 5) полное сравнение 6 алгоритмов с выбранными стратегиями
+        std::cout << "ЗАПУСК ПОЛНОГО СРАВНЕНИЯ 6 АЛГОРИТМОВ...\n";
+        auto all_results = Infrastructure::AlgorithmComparator::compareAlgorithms(graph, test_routes, strategies);
+        
+        // 6) вывод полной таблицы сравнения
         Infrastructure::AlgorithmComparator::printComparisonTable(all_results);
 
-        // 6) тестирование потоковых алгоритмов
+        // 7) тестирование потоковых алгоритмов
         if (test_routes.size() >= 2) {
             std::cout << "\nТЕСТИРОВАНИЕ ПОТОКОВЫХ АЛГОРИТМОВ:\n";
             auto flow_solver = Application::GraphAnalysisFactory::createFlowSolver();
@@ -106,7 +158,7 @@ int main() {
             }
         }
 
-        // 7) тестирование отказоустойчивости
+        // 8) тестирование отказоустойчивости
         if (nodes.size() >= 3) {
             std::cout << "\nТЕСТИРОВАНИЕ ОТКАЗОУСТОЙЧИВОСТИ:\n";
             
@@ -128,11 +180,11 @@ int main() {
             std::cout << "\n";
         }
 
-        // 8) сохранение результатов
+        // 9) сохранение результатов
         std::cout << "СОХРАНЕНИЕ РЕЗУЛЬТАТОВ...\n";
         Infrastructure::SimpleStorage::saveExperimentResults("full_algorithm_comparison.csv", all_results);
         Infrastructure::SimpleStorage::saveGraphInfo(graph, "full_test_results.txt");
-        Infrastructure::SimpleStorage::logEvent("Полное сравнение 6 алгоритмов завершено");
+        Infrastructure::SimpleStorage::logEvent("Полное сравнение 6 алгоритмов завершено. " + strategies.getDescription());
         std::cout << "OK Результаты сохранены в файлы:\n";
         std::cout << "- full_algorithm_comparison.csv\n";
         std::cout << "- full_test_results.txt\n";
@@ -143,6 +195,7 @@ int main() {
 
         std::cout << "ПОЛНОЕ СРАВНЕНИЕ 6 АЛГОРИТМОВ ЗАВЕРШЕНО!\n";
         std::cout << "Общее время выполнения: " << total_duration.count() << " секунд\n";
+        std::cout << "Использованная конфигурация: " << strategies.getDescription() << "\n";
         std::cout << "Протестированы алгоритмы:\n";
         std::cout << "- Дейкстра (Uniform)\n";
         std::cout << "- Дейкстра (Multi-Param)\n"; 

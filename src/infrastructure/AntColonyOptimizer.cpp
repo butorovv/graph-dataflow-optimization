@@ -66,12 +66,11 @@ namespace Infrastructure
         }
 
         auto endTime = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
         if (!global_best.path.empty()) {
             result.success = true;
             result.objective = global_best.path_cost;
-            result.executionTime = duration.count() / 1000.0;
+            result.executionTime = duration.count() / 1000000.0;
             result.algorithmName = "Ant Colony Optimization";
 
             // преобразование пути
@@ -113,7 +112,7 @@ namespace Infrastructure
             for (int neighbor : neighbors) {
                 try {
                     double cost = graph->getEdgeWeight(node, neighbor, strategy);
-                    heuristic[node][neighbor] = 1.0 / (cost + 0.1); // +0.1 чтобы избежать деления на 0
+                    heuristic[node][neighbor] = 1.0 / (cost + 0.1); // + 0.1 чтобы избежать деления на 0
                 } catch (...) {
                     heuristic[node][neighbor] = 0.1;
                 }

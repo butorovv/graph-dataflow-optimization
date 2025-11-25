@@ -7,47 +7,60 @@ namespace Infrastructure
 {
     std::vector<AlgorithmComparison> AlgorithmComparator::compareAlgorithms(
         const Domain::NetworkGraphPtr &graph,
-        const std::vector<std::pair<int, int>> &test_routes)
+        const std::vector<std::pair<int, int>> &test_routes,
+        const Config::StrategySettings &strategies)
     {
         std::vector<AlgorithmComparison> results;
 
         std::cout << "ПОЛНОЕ СРАВНЕНИЕ АЛГОРИТМОВ (Точные + Эвристические)\n";
-        
-        for (const auto& route : test_routes) {
+        std::cout << "Конфигурация стратегий: " << strategies.getDescription() << "\n\n";
+
+        std::cout << "ИСПОЛЬЗУЕМЫЕ СТРАТЕГИИ ВЕСОВ:\n";
+        auto all_strategies = Domain::WeightCalculator::getAllStrategies();
+        for (auto strategy : all_strategies)
+        {
+            std::cout << "- " << Domain::WeightCalculator::getStrategyName(strategy)
+                      << ": " << Domain::WeightCalculator::getStrategyDescription(strategy) << "\n";
+        }
+        std::cout << "\n";
+
+        for (const auto &route : test_routes)
+        {
             auto [start, end] = route;
-            if (start == end) continue;
-            
-            std::cout << "\nМАРШРУТ " << start << " → " << end << ":\n";
+            if (start == end)
+                continue;
+
+            std::cout << "МАРШРУТ " << start << " → " << end << ":\n";
             std::cout << std::string(50, '-') << "\n";
-            
-            // ТОЧНЫЕ АЛГОРИТМЫ
+
+            // точные алгоритмы
             std::cout << "ТОЧНЫЕ АЛГОРИТМЫ:\n";
-            
+
             // BGL Dijkstra - Uniform
-            try {
-                BGLShortestPath bglUniform(false);
-                auto startTime = std::chrono::high_resolution_clock::now();
+            try
+            {
+                BGLShortestPath bglUniform(false, strategies.exact_uniform);
                 auto result = bglUniform.findShortestPath(graph, start, end);
-                auto endTime = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
                 AlgorithmComparison comp;
                 comp.algorithmType = "Exact";
                 comp.algorithmName = result.algorithmName;
-                comp.executionTime = duration.count() / 1000.0;
+                comp.executionTime = result.executionTime;
                 comp.pathCost = result.totalCost;
                 comp.pathLength = result.pathNodes.size();
                 comp.success = result.success;
                 results.push_back(comp);
-                
+
                 std::cout << "  " << comp.algorithmName << ": "
                           << (comp.success ? "OK" : "FAIL")
                           << " cost=" << comp.pathCost
                           << " length=" << comp.pathLength
                           << " time=" << comp.executionTime << "ms\n";
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception &e)
+            {
                 std::cout << "  BGL Dijkstra (Uniform): FAIL Error: " << e.what() << "\n";
-                
+
                 AlgorithmComparison comp;
                 comp.algorithmType = "Exact";
                 comp.algorithmName = "BGL Dijkstra (Uniform) - Error";
@@ -56,30 +69,30 @@ namespace Infrastructure
             }
 
             // BGL Dijkstra - Multi-Param
-            try {
-                BGLShortestPath bglMultiParam(true);
-                auto startTime = std::chrono::high_resolution_clock::now();
+            try
+            {
+                BGLShortestPath bglMultiParam(true, strategies.exact_multi_param);
                 auto result = bglMultiParam.findShortestPath(graph, start, end);
-                auto endTime = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
                 AlgorithmComparison comp;
                 comp.algorithmType = "Exact";
                 comp.algorithmName = result.algorithmName;
-                comp.executionTime = duration.count() / 1000.0;
+                comp.executionTime = result.executionTime;
                 comp.pathCost = result.totalCost;
                 comp.pathLength = result.pathNodes.size();
                 comp.success = result.success;
                 results.push_back(comp);
-                
+
                 std::cout << "  " << comp.algorithmName << ": "
                           << (comp.success ? "OK" : "FAIL")
                           << " cost=" << comp.pathCost
                           << " length=" << comp.pathLength
                           << " time=" << comp.executionTime << "ms\n";
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception &e)
+            {
                 std::cout << "  BGL Dijkstra (Multi-Param): FAIL Error: " << e.what() << "\n";
-                
+
                 AlgorithmComparison comp;
                 comp.algorithmType = "Exact";
                 comp.algorithmName = "BGL Dijkstra (Multi-Param) - Error";
@@ -88,30 +101,30 @@ namespace Infrastructure
             }
 
             // A* - Uniform
-            try {
-                AStarPathFinder astarUniform(false);
-                auto startTime = std::chrono::high_resolution_clock::now();
+            try
+            {
+                AStarPathFinder astarUniform(false, strategies.exact_uniform);
                 auto result = astarUniform.findShortestPath(graph, start, end);
-                auto endTime = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
                 AlgorithmComparison comp;
                 comp.algorithmType = "Exact";
                 comp.algorithmName = result.algorithmName;
-                comp.executionTime = duration.count() / 1000.0;
+                comp.executionTime = result.executionTime;
                 comp.pathCost = result.totalCost;
                 comp.pathLength = result.pathNodes.size();
                 comp.success = result.success;
                 results.push_back(comp);
-                
+
                 std::cout << "  " << comp.algorithmName << ": "
                           << (comp.success ? "OK" : "FAIL")
                           << " cost=" << comp.pathCost
                           << " length=" << comp.pathLength
                           << " time=" << comp.executionTime << "ms\n";
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception &e)
+            {
                 std::cout << "  A* (Uniform): FAIL Error: " << e.what() << "\n";
-                
+
                 AlgorithmComparison comp;
                 comp.algorithmType = "Exact";
                 comp.algorithmName = "A* (Uniform) - Error";
@@ -120,30 +133,30 @@ namespace Infrastructure
             }
 
             // A* - Multi-Param
-            try {
-                AStarPathFinder astarMultiParam(true);
-                auto startTime = std::chrono::high_resolution_clock::now();
+            try
+            {
+                AStarPathFinder astarMultiParam(true, strategies.exact_multi_param);
                 auto result = astarMultiParam.findShortestPath(graph, start, end);
-                auto endTime = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
                 AlgorithmComparison comp;
                 comp.algorithmType = "Exact";
                 comp.algorithmName = result.algorithmName;
-                comp.executionTime = duration.count() / 1000.0;
+                comp.executionTime = result.executionTime;
                 comp.pathCost = result.totalCost;
                 comp.pathLength = result.pathNodes.size();
                 comp.success = result.success;
                 results.push_back(comp);
-                
+
                 std::cout << "  " << comp.algorithmName << ": "
                           << (comp.success ? "OK" : "FAIL")
                           << " cost=" << comp.pathCost
                           << " length=" << comp.pathLength
                           << " time=" << comp.executionTime << "ms\n";
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception &e)
+            {
                 std::cout << "  A* (Multi-Param): FAIL Error: " << e.what() << "\n";
-                
+
                 AlgorithmComparison comp;
                 comp.algorithmType = "Exact";
                 comp.algorithmName = "A* (Multi-Param) - Error";
@@ -151,36 +164,37 @@ namespace Infrastructure
                 results.push_back(comp);
             }
 
-            // ЭВРИСТИЧЕСКИЕ АЛГОРИТМЫ
+            // эвристические алгоритмы
             std::cout << "\nЭВРИСТИЧЕСКИЕ АЛГОРИТМЫ:\n";
-            
+
             std::vector<std::pair<int, int>> single_demand = {{start, end}};
-            
-            // Генетический алгоритм
-            try {
-                GeneticAlgorithm geneticAlgo(50, 100, 0.15, 0.8, Domain::WeightCalculator::BALANCE_LOAD);
-                auto startTime = std::chrono::high_resolution_clock::now();
+
+            // генетический алгоритм
+            try
+            {
+                GeneticAlgorithm geneticAlgo(50, 100, 0.15, 0.8, strategies.genetic);
                 auto result = geneticAlgo.optimize(graph, single_demand);
-                auto endTime = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
                 AlgorithmComparison comp;
                 comp.algorithmType = "Heuristic";
-                comp.algorithmName = "Genetic Algorithm";
-                comp.executionTime = duration.count() / 1000.0;
+                comp.algorithmName = "Genetic Algorithm [" +
+                                     Domain::WeightCalculator::getStrategyName(strategies.genetic) + "]";
+                comp.executionTime = result.executionTime;
                 comp.pathCost = result.objective;
                 comp.pathLength = result.path.size();
                 comp.success = result.success;
                 results.push_back(comp);
-                
+
                 std::cout << "  " << comp.algorithmName << ": "
                           << (comp.success ? "OK" : "FAIL")
                           << " cost=" << comp.pathCost
                           << " length=" << comp.pathLength
                           << " time=" << comp.executionTime << "ms\n";
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception &e)
+            {
                 std::cout << "  Genetic Algorithm: FAIL Error: " << e.what() << "\n";
-                
+
                 AlgorithmComparison comp;
                 comp.algorithmType = "Heuristic";
                 comp.algorithmName = "Genetic Algorithm - Error";
@@ -188,31 +202,32 @@ namespace Infrastructure
                 results.push_back(comp);
             }
 
-            // Муравьиный алгоритм
-            try {
-                AntColonyOptimizer antAlgo(50, 100, 1.0, 2.0, 0.5, 100.0, Domain::WeightCalculator::BALANCE_LOAD);
-                auto startTime = std::chrono::high_resolution_clock::now();
+            // муравьиный алгоритм
+            try
+            {
+                AntColonyOptimizer antAlgo(50, 100, 1.0, 2.0, 0.5, 100.0, strategies.ant_colony);
                 auto result = antAlgo.optimize(graph, single_demand);
-                auto endTime = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
                 AlgorithmComparison comp;
                 comp.algorithmType = "Heuristic";
-                comp.algorithmName = "Ant Colony Optimization";
-                comp.executionTime = duration.count() / 1000.0;
+                comp.algorithmName = "Ant Colony Optimization [" +
+                                     Domain::WeightCalculator::getStrategyName(strategies.ant_colony) + "]";
+                comp.executionTime = result.executionTime;
                 comp.pathCost = result.objective;
                 comp.pathLength = result.path.size();
                 comp.success = result.success;
                 results.push_back(comp);
-                
+
                 std::cout << "  " << comp.algorithmName << ": "
                           << (comp.success ? "OK" : "FAIL")
                           << " cost=" << comp.pathCost
                           << " length=" << comp.pathLength
                           << " time=" << comp.executionTime << "ms\n";
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception &e)
+            {
                 std::cout << "  Ant Colony Optimization: FAIL Error: " << e.what() << "\n";
-                
+
                 AlgorithmComparison comp;
                 comp.algorithmType = "Heuristic";
                 comp.algorithmName = "Ant Colony Optimization - Error";
@@ -224,66 +239,83 @@ namespace Infrastructure
         return results;
     }
 
-    void AlgorithmComparator::printComparisonTable(const std::vector<AlgorithmComparison> &results) {
-        std::cout << "\n" << std::string(80, '=') << "\n";
+    void AlgorithmComparator::printComparisonTable(const std::vector<AlgorithmComparison> &results)
+    {
+        std::cout << "\n"
+                  << std::string(100, '=') << "\n";
         std::cout << "ПОЛНАЯ ТАБЛИЦА СРАВНЕНИЯ АЛГОРИТМОВ\n";
-        std::cout << std::string(80, '=') << "\n";
-        
-        // Группируем по типам алгоритмов
+        std::cout << std::string(100, '=') << "\n";
+
+        // точные алгоритмы
         std::cout << "\nТОЧНЫЕ АЛГОРИТМЫ:\n";
-        std::cout << std::setw(35) << "Algorithm" 
-                  << std::setw(10) << "Success" 
-                  << std::setw(12) << "Cost" 
-                  << std::setw(8) << "Length" 
+        std::cout << std::left
+                  << std::setw(40) << "Algorithm"
+                  << std::setw(10) << "Success"
+                  << std::setw(15) << "Cost"
+                  << std::setw(8) << "Length"
                   << std::setw(12) << "Time(ms)" << "\n";
-        std::cout << std::string(77, '-') << "\n";
-        
-        for (const auto& result : results) {
-            if (result.algorithmType == "Exact") {
-                std::cout << std::setw(35) << result.algorithmName
+        std::cout << std::string(85, '-') << "\n";
+
+        for (const auto &result : results)
+        {
+            if (result.algorithmType == "Exact")
+            {
+                std::cout << std::left
+                          << std::setw(40) << result.algorithmName
                           << std::setw(10) << (result.success ? "OK" : "FAIL")
-                          << std::setw(12) << std::fixed << std::setprecision(2) << result.pathCost
+                          << std::setw(15) << std::fixed << std::setprecision(6) << result.pathCost
                           << std::setw(8) << result.pathLength
-                          << std::setw(12) << std::setprecision(1) << result.executionTime << "\n";
+                          << std::setw(12) << std::fixed << std::setprecision(3) << result.executionTime << "\n";
             }
         }
-        
+
+        // эвристические алгоритмы
         std::cout << "\nЭВРИСТИЧЕСКИЕ АЛГОРИТМЫ:\n";
-        std::cout << std::setw(35) << "Algorithm" 
-                  << std::setw(10) << "Success" 
-                  << std::setw(12) << "Cost" 
-                  << std::setw(8) << "Length" 
+        std::cout << std::left
+                  << std::setw(45) << "Algorithm"
+                  << std::setw(10) << "Success"
+                  << std::setw(15) << "Cost"
+                  << std::setw(8) << "Length"
                   << std::setw(12) << "Time(ms)" << "\n";
-        std::cout << std::string(77, '-') << "\n";
-        
-        for (const auto& result : results) {
-            if (result.algorithmType == "Heuristic") {
-                std::cout << std::setw(35) << result.algorithmName
+        std::cout << std::string(90, '-') << "\n";
+
+        for (const auto &result : results)
+        {
+            if (result.algorithmType == "Heuristic")
+            {
+                std::cout << std::left
+                          << std::setw(45) << result.algorithmName
                           << std::setw(10) << (result.success ? "OK" : "FAIL")
-                          << std::setw(12) << std::fixed << std::setprecision(2) << result.pathCost
+                          << std::setw(15) << std::fixed << std::setprecision(6) << result.pathCost
                           << std::setw(8) << result.pathLength
-                          << std::setw(12) << std::setprecision(1) << result.executionTime << "\n";
+                          << std::setw(12) << std::fixed << std::setprecision(3) << result.executionTime << "\n";
             }
         }
-        
-        // Сводная статистика
+
+        // сводная статистика
         std::cout << "\nСВОДНАЯ СТАТИСТИКА:\n";
         int exactCount = 0, heuristicCount = 0;
         int exactSuccess = 0, heuristicSuccess = 0;
-        
-        for (const auto& result : results) {
-            if (result.algorithmType == "Exact") {
+
+        for (const auto &result : results)
+        {
+            if (result.algorithmType == "Exact")
+            {
                 exactCount++;
-                if (result.success) exactSuccess++;
-            } else {
+                if (result.success)
+                    exactSuccess++;
+            }
+            else
+            {
                 heuristicCount++;
-                if (result.success) heuristicSuccess++;
+                if (result.success)
+                    heuristicSuccess++;
             }
         }
-        
-        std::cout << "Точные алгоритмы: " << exactSuccess << "/" << exactCount << " успешных (" 
+
+        std::cout << "Точные алгоритмы: " << exactSuccess << "/" << exactCount << " успешных ("
                   << (exactSuccess * 100.0 / exactCount) << "%)\n";
-        std::cout << "Эвристические алгоритмы: " << heuristicSuccess << "/" << heuristicCount << " успешных (" 
+        std::cout << "Эвристические алгоритмы: " << heuristicSuccess << "/" << heuristicCount << " успешных ("
                   << (heuristicSuccess * 100.0 / heuristicCount) << "%)\n";
     }
 }

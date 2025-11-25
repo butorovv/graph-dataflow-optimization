@@ -22,16 +22,19 @@ namespace Infrastructure
             const Domain::NetworkGraphPtr &graph,
             int start_id, int end_id) override;
 
+        std::string getAlgorithmName() const override {
+            if (!useWeights) {
+                return "BGL Dijkstra (Uniform)";
+            }
+            return "BGL Dijkstra (" + Domain::WeightCalculator::getStrategyName(strategy) + ")";
+        }
+
         // статический метод с параметрами
         static Domain::PathResult findShortestPathStatic(
             const Domain::NetworkGraphPtr &graph,
             int start_id, int end_id,
             bool useWeights = true,
             Domain::WeightCalculator::Strategy strategy = Domain::WeightCalculator::MINIMIZE_LATENCY);
-
-        std::string getAlgorithmName() const override {
-            return useWeights ? "BGL Dijkstra (Multi-Param)" : "BGL Dijkstra (Uniform)";
-        }
 
     private:
         bool useWeights;
