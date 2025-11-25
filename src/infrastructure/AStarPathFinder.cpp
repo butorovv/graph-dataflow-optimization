@@ -1,10 +1,8 @@
 #include "infrastructure/AStarPathFinder.h"
 #include <limits>
 #include <algorithm>
-#include <functional>
-#include <iostream>
-#include <queue>
-#include <unordered_set>
+#include <vector>
+#include <unordered_map>
 
 namespace Infrastructure
 {
@@ -12,127 +10,182 @@ namespace Infrastructure
         const Domain::NetworkGraphPtr &graph,
         int start_id, int end_id)
     {
-        auto startTime = std::chrono::high_resolution_clock::now();
+        return findShortestPathStatic(graph, start_id, end_id, useWeights, strategy);
+    }
+
+    Domain::PathResult AStarPathFinder::findShortestPathStatic(
+        const Domain::NetworkGraphPtr &graph,
+        int start_id, int end_id,
+        bool useWeights,
+        Domain::WeightCalculator::Strategy strategy)
+    {
+        const int RUNS = 100;  // 100 запусков для усреднения
+        auto total_duration = std::chrono::nanoseconds::zero();
         Domain::PathResult result;
 
-        if (!graph || !graph->hasNode(start_id) || !graph->hasNode(end_id)) {
+        // проверка входных данных
+        if (!graph->hasNode(start_id) || !graph->hasNode(end_id))
+        {
             result.success = false;
             result.errorMessage = "Start or end node not found";
             return result;
         }
 
-        // ограничиваем максимальное количество посещенных узлов для больших графов
-        const size_t MAX_VISITED_NODES = 10000;
+        // ограничение на размер графа
+        const size_t MAX_NODES = 5000;
+        auto node_ids = graph->getAllNodeIds();
+        if (node_ids.size() > MAX_NODES)
+        {
+            result.success = false;
+            result.errorMessage = "Graph too large for BGL A* (" + std::to_string(node_ids.size()) + " nodes)";
+            return result;
+        }
 
-        struct Node {
-            int id;
-            double f_score;
-            double g_score;
-            
-            bool operator>(const Node& other) const {
-                return f_score > other.f_score;
-            }
-        };
+        // подготовка BGL графа
+        BGLGraph bgl_graph;
+        std::unordered_map<int, size_t> node_to_index;
+        std::vector<int> index_to_node;
+        index_to_node.reserve(node_ids.size());
 
-        std::priority_queue<Node, std::vector<Node>, std::greater<Node>> open_set;
-        std::unordered_map<int, double> g_score;
-        std::unordered_map<int, int> came_from;
-        std::unordered_set<int> closed_set;
+        for (size_t i = 0; i < node_ids.size(); ++i)
+        {
+            node_to_index[node_ids[i]] = i;
+            index_to_node.push_back(node_ids[i]);
+        }
+        bgl_graph = BGLGraph(node_ids.size());
 
-        // инициализация
-        g_score[start_id] = 0.0;
-        open_set.push({start_id, heuristic(start_id, end_id), 0.0});
-
-        size_t visited_count = 0;
-
-        while (!open_set.empty() && visited_count < MAX_VISITED_NODES) {
-            Node current = open_set.top();
-            open_set.pop();
-
-            int current_id = current.id;
-            
-            // если уже обработали этот узел
-            if (closed_set.find(current_id) != closed_set.end()) {
-                continue;
-            }
-
-            closed_set.insert(current_id);
-            visited_count++;
-
-            // если достигли цели
-            if (current_id == end_id) {
-                break;
-            }
-
-            // обработка соседей
-            for (int neighbor_id : graph->getNeighbors(current_id)) {
-                if (closed_set.find(neighbor_id) != closed_set.end()) {
-                    continue;
-                }
-
-                double edge_weight = 1.0;
-                
-                if (useWeights) {
-                    try {
-                        edge_weight = graph->getEdgeWeight(current_id, neighbor_id, strategy);
-                    } catch (...) {
-                        edge_weight = 1.0;
+        // построение графа
+        for (int node_id : node_ids)
+        {
+            size_t u = node_to_index[node_id];
+            const auto &neighbors = graph->getNeighbors(node_id);
+            for (int v_id : neighbors)
+            {
+                double weight = 1.0;
+                if (useWeights)
+                {
+                    try
+                    {
+                        weight = graph->getEdgeWeight(node_id, v_id, strategy);
+                    }
+                    catch (...)
+                    {
+                        weight = 1.0;
                     }
                 }
-
-                double tentative_g_score = g_score[current_id] + edge_weight;
-
-                // если нашли лучший путь к соседу
-                if (g_score.find(neighbor_id) == g_score.end() || 
-                    tentative_g_score < g_score[neighbor_id]) {
-                    
-                    came_from[neighbor_id] = current_id;
-                    g_score[neighbor_id] = tentative_g_score;
-                    double f_score = tentative_g_score + heuristic(neighbor_id, end_id);
-                    open_set.push({neighbor_id, f_score, tentative_g_score});
-                }
+                size_t v = node_to_index[v_id];
+                boost::add_edge(u, v, weight, bgl_graph);
             }
         }
 
-        // проверка, найден ли путь
-        if (g_score.find(end_id) == g_score.end() || 
-            g_score[end_id] == std::numeric_limits<double>::infinity()) {
+        const size_t n = index_to_node.size();
+        size_t start_idx = node_to_index[start_id];
+        size_t end_idx = node_to_index[end_id];
+
+        // один запуск для получения результата пути
+        std::vector<double> distances(n, std::numeric_limits<double>::infinity());
+        std::vector<BGLGraph::vertex_descriptor> predecessors(n);
+
+        try
+        {
+            // инициализация предшественников
+            for (size_t i = 0; i < n; ++i)
+                predecessors[i] = i;
+
+            // запуск алгоритма A* из Boost
+            auto heuristic = AStarHeuristic<BGLGraph, double>(end_idx);
+            auto visitor = AStarGoalVisitor<BGLGraph::vertex_descriptor>(end_idx);
+
+            boost::astar_search(
+                bgl_graph,
+                start_idx,
+                heuristic,
+                boost::predecessor_map(&predecessors[0])
+                   .distance_map(&distances[0])
+                   .visitor(visitor)
+            );
+
+        }
+        catch (const found_goal&)
+        {
+            // путь найден - продолжаем обработку
+        }
+        catch (const std::exception& e)
+        {
             result.success = false;
-            if (visited_count >= MAX_VISITED_NODES) {
-                result.errorMessage = "Search limit exceeded (" + std::to_string(MAX_VISITED_NODES) + " nodes visited)";
-            } else {
-                result.errorMessage = "No path found between nodes " + 
-                                    std::to_string(start_id) + " and " + std::to_string(end_id);
-            }
+            result.errorMessage = std::string("BGL A* error: ") + e.what();
+            return result;
+        }
+
+        // проверка, найден ли путь
+        if (distances[end_idx] == std::numeric_limits<double>::infinity())
+        {
+            result.success = false;
+            result.errorMessage = "No path found";
             return result;
         }
 
         // восстановление пути
-        std::vector<int> path;
-        int current = end_id;
-        while (current != start_id) {
-            path.push_back(current);
-            current = came_from[current];
-            if (path.size() > 1000) { // защита от бесконечного цикла
+        std::vector<int> rev_path;
+        for (size_t v = end_idx; v != start_idx; v = predecessors[v])
+        {
+            if (predecessors[v] == v) // цикл или ошибка
+            {
                 result.success = false;
-                result.errorMessage = "Path too long or cycle detected";
+                result.errorMessage = "Path reconstruction failed";
                 return result;
             }
+            rev_path.push_back(index_to_node[v]);
         }
-        path.push_back(start_id);
-        std::reverse(path.begin(), path.end());
-
-        auto endTime = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+        rev_path.push_back(index_to_node[start_idx]);
+        std::reverse(rev_path.begin(), rev_path.end());
 
         result.success = true;
-        result.pathNodes = std::move(path);
-        result.totalCost = g_score[end_id];
-        result.executionTime = duration.count() / 1000.0;
-        result.algorithmName = useWeights ? 
-            "A* (Multi-Param Weights)" : 
-            "A* (Uniform Weights)";
+        result.pathNodes = std::move(rev_path);
+        result.totalCost = distances[end_idx];
+        result.algorithmName = useWeights ? "BGL A* (Multi-Param)" : "BGL A* (Uniform)";
+
+        // многократный запуск для измерения времени (без восстановления пути)
+        for (int run = 0; run < RUNS; ++run)
+        {
+            auto startTime = std::chrono::high_resolution_clock::now();
             
+            std::vector<double> temp_distances(n, std::numeric_limits<double>::infinity());
+            std::vector<BGLGraph::vertex_descriptor> temp_predecessors(n);
+            
+            // инициализация предшественников
+            for (size_t i = 0; i < n; ++i)
+                temp_predecessors[i] = i;
+
+            try
+            {
+                auto temp_heuristic = AStarHeuristic<BGLGraph, double>(end_idx);
+                auto temp_visitor = AStarGoalVisitor<BGLGraph::vertex_descriptor>(end_idx);
+
+                boost::astar_search(
+                    bgl_graph,
+                    start_idx,
+                    temp_heuristic,
+                    boost::predecessor_map(&temp_predecessors[0])
+                       .distance_map(&temp_distances[0])
+                       .visitor(temp_visitor)
+                );
+            }
+            catch (const found_goal&)
+            {
+                // путь найден - это нормально
+            }
+            catch (...)
+            {
+                // игнорируем ошибки при многократном запуске
+            }
+            
+            auto endTime = std::chrono::high_resolution_clock::now();
+            total_duration += (endTime - startTime);
+        }
+
+        // усредненное время
+        result.executionTime = (total_duration.count() / RUNS) / 1000000.0;
         return result;
     }
 }
