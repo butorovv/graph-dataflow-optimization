@@ -110,7 +110,8 @@ namespace Infrastructure
         result.maxFlow = static_cast<double>(flow);
         result.algorithmName = "Boost Push-Relabel";
         result.totalCost = static_cast<double>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - start).count());
+                               std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - start).count()) /
+                           1000000.0;
         result.success = true;
         return result;
     }
@@ -204,7 +205,8 @@ namespace Infrastructure
         res.flowCost = static_cast<double>(total_flow_cost);
         res.algorithmName = "Boost MinCostFlow (successive_shortest_path)";
         res.totalCost = static_cast<double>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - start).count());
+                            std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - start).count()) /
+                        1000000.0;
         res.success = true;
         return res;
     }
